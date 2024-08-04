@@ -16,7 +16,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useFetch, useMutateData } from "@/hooks/useFetch";
 import { toast } from "react-toastify";
-import RenderContentLoading from "@/components/shared/RenderContentLoading";
 import moment from "moment-timezone";
 
 export type SubcommunitiesItemType = (typeof subcommunitiesData)[number];
@@ -25,11 +24,9 @@ const Subcommunities = () => {
   const [auth] = useAuth();
   const queryClient = useQueryClient();
 
-  const {
-    data: communities,
-    isLoading,
-    refetch: refetchSubcommunities,
-  } = useFetch<ICommunity[]>({
+  const { data: communities, refetch: refetchSubcommunities } = useFetch<
+    ICommunity[]
+  >({
     queryKey: "communities",
     url: "/communities",
     enabled: true,
@@ -45,7 +42,9 @@ const Subcommunities = () => {
     if (communities) {
       console.log("-C-CCCCCCCCCCC-C-C-C-C", communities);
       setSubcommunities(
-        communities.length > 4 ? communities.slice(0, 2) : communities
+        communities.length > 4
+          ? communities.sort((a, b) => b.id - a.id).slice(0, 2)
+          : communities.sort((a, b) => b.id - a.id)
       );
     }
   }, [communities]);
@@ -56,14 +55,16 @@ const Subcommunities = () => {
     setSearchTerm(e.target.value);
 
     if (e.target.value.length > 0) {
-      const filtered = communities.filter(
-        (com) =>
-          com.name.toLowerCase().includes(e.target.value.toLowerCase()) ||
-          com.description.toLowerCase().includes(e.target.value.toLowerCase())
-      );
+      const filtered = communities
+        .filter(
+          (com) =>
+            com.name.toLowerCase().includes(e.target.value.toLowerCase()) ||
+            com.description.toLowerCase().includes(e.target.value.toLowerCase())
+        )
+        .sort((a, b) => b.id - a.id);
       setSubcommunities(filtered);
     } else {
-      setSubcommunities(communities);
+      setSubcommunities(communities.sort((a, b) => b.id - a.id));
     }
   };
 
@@ -78,19 +79,16 @@ const Subcommunities = () => {
 
     setTimeout(() => {
       setSubcommunities(
-        subcommunities.concat(
-          communities.slice(subcommunities.length, subcommunities.length + 2)
-        )
+        subcommunities
+          .concat(
+            communities.slice(subcommunities.length, subcommunities.length + 2)
+          )
+          .sort((a, b) => b.id - a.id)
       );
     }, 500);
   };
 
-  const {
-    mutateAsync: mutateAsyncJoin,
-    isPending,
-    error: errorJoin,
-    isError,
-  } = useMutation({
+  const { mutateAsync: mutateAsyncJoin } = useMutation({
     mutationFn: async (id: string) => {
       const res = await axiosInstance.put(
         `/communities/${id}/members`,
@@ -140,7 +138,7 @@ const Subcommunities = () => {
   const handleDeleteItem = async () => {
     await mutateAsync(null, {
       onError: () => {
-        toast.error("Something went wrong");
+        toast.error(error?.response?.data?.message);
         console.log({ error });
       },
     });
@@ -153,22 +151,6 @@ const Subcommunities = () => {
 
     refetchSubcommunities();
   };
-
-  // if (isLoading) {
-  //   return <RenderContentLoading />;
-  // }
-
-  // if (!communities) {
-  //   return (
-  //     <RenderContentLoading>
-  //       <div className="flex flex-col items-center justify-center w-full h-full gap-5 mx-auto">
-  //         <p className="text-primary-brown text-base">
-  //           Sorry, we couldn't find any communities. Please try again later.
-  //         </p>
-  //       </div>
-  //     </RenderContentLoading>
-  //   );
-  // }
 
   return (
     <div className="w-full">
@@ -203,7 +185,9 @@ const Subcommunities = () => {
                 Explore Subcommunities
               </h2>
 
-              <CreateSubcommunity />
+              <CreateSubcommunity
+                refetchSubcommunities={refetchSubcommunities}
+              />
             </section>
 
             <p className="text-sm font-normal text-black">
@@ -277,31 +261,42 @@ const Subcommunities = () => {
                   }
                   className="gap-7 flex flex-col w-full"
                 >
-                  {subcommunities.map((sub, index) => (
-                    <SubcommunitiesItem
-                      key={index}
-                      item={sub}
-                      type="all"
-                      handleJoinSubcommunity={handleJoinSubcommunity}
-                      handleLeaveSubcommunity={handleLeaveSubcommunity}
-                      setOpenModal={setOpenModal}
-                      setItemToDeleteId={setItemToDeleteId}
-                    />
-                  ))}
+                  {subcommunities
+                    .sort((a, b) => b.id - a.id)
+                    .map((sub, index) => (
+                      <SubcommunitiesItem
+                        key={index}
+                        item={sub}
+                        type="all"
+                        handleJoinSubcommunity={handleJoinSubcommunity}
+                        handleLeaveSubcommunity={handleLeaveSubcommunity}
+                        setOpenModal={setOpenModal}
+                        setItemToDeleteId={setItemToDeleteId}
+                        isOwner={false}
+                      />
+                    ))}
                 </InfiniteScroll>
               </section>
             </TabsContent>
 
             <TabsContent value="subcommunities">
               <section className="gap-7 flex flex-col w-full">
-                {subcommunities.filter((sub) => sub.owner.id === auth?.user.id)
-                  .length === 0 ? (
+                {subcommunities.filter(
+                  (sub) =>
+                    sub.owner.id === auth?.user.id ||
+                    sub?.members_ids?.includes(auth?.user?.id as number)
+                ).length === 0 ? (
                   <p className="text-black">
                     You haven't joined any subcommunities yet.
                   </p>
                 ) : (
                   subcommunities
-                    .filter((sub) => sub.owner.id === auth?.user.id)
+                    .filter(
+                      (sub) =>
+                        sub.owner.id === auth?.user.id ||
+                        sub?.members_ids?.includes(auth?.user?.id as number)
+                    )
+                    .sort((a, b) => b.id - a.id)
                     .map((sub) => (
                       <SubcommunitiesItem
                         key={sub.id}
@@ -311,6 +306,7 @@ const Subcommunities = () => {
                         handleLeaveSubcommunity={handleLeaveSubcommunity}
                         setOpenModal={setOpenModal}
                         setItemToDeleteId={setItemToDeleteId}
+                        isOwner={true}
                       />
                     ))
                 )}
@@ -341,6 +337,7 @@ type SubcommunitiesItemProps = {
   handleLeaveSubcommunity: (id: number) => void;
   setOpenModal: (open: boolean) => void;
   setItemToDeleteId: (id: number) => void;
+  isOwner?: boolean;
 };
 const SubcommunitiesItem = ({
   item,
@@ -349,6 +346,7 @@ const SubcommunitiesItem = ({
   handleLeaveSubcommunity,
   setOpenModal,
   setItemToDeleteId,
+  isOwner,
 }: SubcommunitiesItemProps) => {
   const [auth] = useAuth();
   const viewSubcommunityPath =
@@ -356,7 +354,7 @@ const SubcommunitiesItem = ({
       ? "/admin/subcommunity-management"
       : "/user/subcommunities";
 
-  const { data: subcommunityMembers, isLoading } = useFetch<any>({
+  const { data: subcommunityMembers } = useFetch<any>({
     queryKey: `communities-${item.id}-members`,
     url: `/communities/${item.id}/members`,
     enabled: true,
@@ -368,7 +366,7 @@ const SubcommunitiesItem = ({
       item?.members_ids,
       item?.members_count
     );
-  }, [subcommunityMembers]);
+  }, [item?.members_count, item?.members_ids, subcommunityMembers]);
 
   const joined = subcommunityMembers?.find(
     (member: any) => member.id === auth?.user.id
@@ -390,11 +388,16 @@ const SubcommunitiesItem = ({
         </div>
 
         {UrlPath() === "admin" && (
-          <Link to={`${viewSubcommunityPath}/${slugifyData(item.name)}`}>
-            <Button className="border-primary-brown hover:bg-transparent text-secondary-gray py-2 bg-transparent border rounded-none">
-              View Activity
-            </Button>
-          </Link>
+          <Button
+            onClick={() =>
+              navigate(`${viewSubcommunityPath}/${slugifyData(item.name)}`, {
+                state: { id: item?.id },
+              })
+            }
+            className="border-primary-brown hover:bg-transparent text-secondary-gray py-2 bg-transparent border rounded-none"
+          >
+            View Activity
+          </Button>
         )}
       </section>
 
@@ -449,16 +452,17 @@ const SubcommunitiesItem = ({
                   </Button>
                 )
               ) : (
-                <LoginModal hasChildren={true} endPath={`/${item.id}`}>
+                <LoginModal
+                  hasChildren={true}
+                  endPath={`/${item.id}`}
+                  className={isOwner ? "hidden" : "block"}
+                >
                   <Button className="bg-primary-green py-2 text-white rounded-none">
                     Join
                   </Button>
                 </LoginModal>
               )}
 
-              {/* <Link
-                to={`/${UrlPath()}/subcommunities/${slugifyData(item.name)}`}
-              > */}
               <Button
                 onClick={() =>
                   navigate(`/user/subcommunities/${slugifyData(item.name)}`, {
@@ -469,7 +473,6 @@ const SubcommunitiesItem = ({
               >
                 View Activity
               </Button>
-              {/* </Link> */}
             </div>
           )}
         </section>

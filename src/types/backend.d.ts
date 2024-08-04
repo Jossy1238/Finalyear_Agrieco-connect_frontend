@@ -44,7 +44,8 @@ declare interface IFeedUser {
   fullname: string;
   username: string;
   email: string;
-  followers: number
+  followers: number;
+  avatar?: string;
 }
 
 declare interface ITopic {
@@ -54,7 +55,7 @@ declare interface ITopic {
 }
 
 declare interface ITrend {
-  [key:string] : number
+  [key: string]: number;
 }
 
 // === MARKETPLACE ===
@@ -98,6 +99,24 @@ declare interface ICommunity {
   updated_at: string;
   is_active: boolean;
   owner: IFeedUser;
-  members_count?: number;
-  members_ids?: number[];
+  members_count: number;
+  members_ids: number[];
+}
+
+// === APPOINTMENTS ===
+declare interface IAppointment {
+  id: number;
+  user: IFeedUser;
+  company_name: string;
+  specialty: string;
+  location: string;
+  experience_level: string;
+  availability_slot_start: string;
+  availability_slot_end: string;
+  contact_information: null | string | undefined;
+  bio: string;
+  created_at: string;
+  updated_at: string;
+  is_active: boolean;
+  is_booked: boolean;
 }
